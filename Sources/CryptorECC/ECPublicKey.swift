@@ -154,6 +154,41 @@ public class ECPublicKey {
             self.nativeKey = secKey
         #endif
     }
+
+    /**
+    Initialize an ECPublicKey from a `base64 SecKey` file format.
+    ### Usage Example: ###
+    ```swift
+    let publicKeyString = """
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEikc5m6C2xtDWeeAeT18WElO37zvF
+    Oz8p4kAlhvgIHN23XIClNESgKVmLgSSq2asqiwdrU5YHbcHFkgdABM1SPA==
+    """
+    let publicKey = try ECPublicKey(key: publicKeyString)
+    ```
+    - Parameter key: The elliptic curve public key as a base64 SecKey.
+    - Returns: An ECPublicKey.
+    - Throws: An ECError if the SecKey string can't be decoded or is not a valid key.
+    */
+    public init(secKey: String) throws {
+        self.pemString = ""
+        self.curve = .prime256v1
+        self.curveId = curve.description
+        
+        var error: Unmanaged<CFError>? = nil
+        guard let key = Data(base64Encoded: secKey),
+            let secKey = SecKeyCreateWithData(key as CFData,
+                                                [kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
+                                                 kSecAttrKeyClass: kSecAttrKeyClassPublic] as CFDictionary,
+                                                 &error)
+        else {
+            if let secError = error?.takeRetainedValue() {
+                throw secError
+            } else {
+                throw ECError.failedNativeKeyCreation
+            }
+        }
+        self.nativeKey = secKey
+    }
     
     private static func derToPublicPEM(derData: Data) -> String {
         // First convert the DER data to a base64 string...
